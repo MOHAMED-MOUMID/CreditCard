@@ -20,8 +20,8 @@ const addCard = async () => {
   try {
     const res = await api.post('/cards', {
       cardNumber: newCardNumber.value,
-      expirationDate: newExpiration.value,
-      cardHolderName: newCardHolder.value
+      cardHolderName: newCardHolder.value,
+      expirationDate: newExpiration.value
     })
     cards.value.push(res.data)
     newCardNumber.value = ''

@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using CreditCardApi.Data;
-using CreditCardApi.Models;
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using CreditCardApi.Data;
+using CreditCardApi.Models;
+using CreditCardApi.DTOs;
 
 [ApiController]
 [Route("api/auth")]
@@ -20,41 +20,55 @@ public class AuthController : ControllerBase
         _config = config;
     }
 
+    // -----------------------------
+    // REGISTER
+    // -----------------------------
     [HttpPost("register")]
-    public async Task<IActionResult> Register(User user)
+    public async Task<IActionResult> Register(RegisterRequest request)
     {
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+        // Vérifier si l'email existe déjà
+        if (_context.Users.Any(u => u.Email == request.Email))
+            return BadRequest("Cet email est déjà utilisé.");
+
+        // Créer l'utilisateur
+        var user = new User
+        {
+            Email = request.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
+        };
+
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        // Générer le token
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]);
+        // Générer le token JWT
+        var token = GenerateToken(user);
 
-        var token = tokenHandler.CreateToken(new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(new[]
-            {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
-        }),
-            Expires = DateTime.UtcNow.AddHours(2),
-            Issuer = _config["Jwt:Issuer"],
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(key),
-                SecurityAlgorithms.HmacSha256)
-        });
-
-        return Ok(new { token = tokenHandler.WriteToken(token) });
+        return Ok(new { token });
     }
 
-
+    // -----------------------------
+    // LOGIN
+    // -----------------------------
     [HttpPost("login")]
-    public IActionResult Login(User login)
+    public IActionResult Login(LoginRequest request)
     {
-        var user = _context.Users.FirstOrDefault(u => u.Email == login.Email);
-        if (user == null || !BCrypt.Net.BCrypt.Verify(login.PasswordHash, user.PasswordHash))
-            return Unauthorized();
+        // Chercher l'utilisateur
+        var user = _context.Users.FirstOrDefault(u => u.Email == request.Email);
 
+        if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            return Unauthorized("Email ou mot de passe incorrect.");
+
+        // Générer le token JWT
+        var token = GenerateToken(user);
+
+        return Ok(new { token });
+    }
+
+    // -----------------------------
+    // MÉTHODE PRIVÉE POUR LE TOKEN
+    // -----------------------------
+    private string GenerateToken(User user)
+    {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
 
@@ -72,6 +86,6 @@ public class AuthController : ControllerBase
         };
 
         var token = tokenHandler.CreateToken(tokenDescriptor);
-        return Ok(new { token = tokenHandler.WriteToken(token) });
+        return tokenHandler.WriteToken(token);
     }
 }

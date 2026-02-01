@@ -7,10 +7,12 @@ export const useAuthStore = defineStore('auth', {
   }),
   actions: {
     async login(email, password) {
+      // ⚡ CORRECTION: envoyer { email, password }
       const res = await axios.post('http://localhost:5213/api/auth/login', {
         email,
-        passwordHash: password
+        password
       })
+
       this.token = res.data.token
       localStorage.setItem('token', this.token)
     },
