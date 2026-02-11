@@ -61,6 +61,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "CreditCardApi", Version = "v1" });
 
+    // JWT Bearer token pour Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -72,20 +73,19 @@ builder.Services.AddSwaggerGen(c =>
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
-{
     {
-        new OpenApiSecurityScheme
         {
-            Reference = new OpenApiReference
+            new OpenApiSecurityScheme
             {
-                Type = ReferenceType.SecurityScheme,
-                Id = "Bearer"
-            }
-        },
-        new string[] {}
-    }
-});
-
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
 });
 
 var app = builder.Build();
@@ -93,15 +93,18 @@ var app = builder.Build();
 // ---------------------------
 // 5️⃣ Middleware
 // ---------------------------
-if (app.Environment.IsDevelopment())
+// Swagger accessible tout le temps
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "CreditCardApi v1");
+    c.RoutePrefix = "swagger"; 
+});
 
-app.UseHttpsRedirection();
 
-// ⭐ CORS AVANT AUTH
+//app.UseHttpsRedirection();
+
+// CORS avant Auth
 app.UseCors("AllowVueFrontend");
 
 app.UseAuthentication();
